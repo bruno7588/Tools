@@ -169,3 +169,76 @@ export function toCss(shapes: Shape[], settings: Settings): string {
     `background-image:\n  ${layers.join(',\n  ')};`,
   ].join('\n')
 }
+
+/**
+ * Resolution-independent SVG of the mesh. Blur uses feGaussianBlur and grain
+ * uses feTurbulence, so it renders identically at any size in a browser.
+ * (Design tools may ignore SVG filters — use the PNG export for those.)
+ */
+export function toSvg(shapes: Shape[], settings: Settings, W: number, H: number): string {
+  const minDim = Math.min(W, H)
+  const blurPx = (settings.blur / 100) * 0.32 * minDim
+  const n = (v: number) => v.toFixed(1)
+
+  const defs: string[] = []
+  const body: string[] = []
+
+  for (const s of shapes) {
+    const cx = s.x * W
+    const cy = s.y * H
+    const r = s.size * minDim * 0.6
+    if (s.type === 'circle') {
+      const id = `g-${s.id}`
+      defs.push(
+        `<radialGradient id="${id}" gradientUnits="userSpaceOnUse" cx="${n(cx)}" cy="${n(
+          cy,
+        )}" r="${n(r)}"><stop offset="0" stop-color="${s.color}" stop-opacity="${s.opacity}"/>` +
+          `<stop offset="1" stop-color="${s.color}" stop-opacity="0"/></radialGradient>`,
+      )
+      body.push(`<circle cx="${n(cx)}" cy="${n(cy)}" r="${n(r)}" fill="url(#${id})"/>`)
+    } else {
+      const side = r * 1.6
+      const corner = Math.min(s.radius ?? 0, 1) * (side / 2)
+      body.push(
+        `<rect x="${n(cx - side / 2)}" y="${n(cy - side / 2)}" width="${n(side)}" height="${n(
+          side,
+        )}" rx="${n(corner)}" fill="${s.color}" fill-opacity="${s.opacity}" transform="rotate(${n(
+          s.rotation,
+        )} ${n(cx)} ${n(cy)})"/>`,
+      )
+    }
+  }
+
+  const blurred = blurPx > 0.2
+  if (blurred) {
+    defs.push(
+      `<filter id="blur" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="${n(
+        blurPx,
+      )}"/></filter>`,
+    )
+  }
+
+  const overlay =
+    settings.overlayOpacity > 0
+      ? `<rect width="${W}" height="${H}" fill="${settings.overlayColor}" fill-opacity="${settings.overlayOpacity}"/>`
+      : ''
+
+  let grain = ''
+  if (settings.grain > 0) {
+    const freq = (0.9 / settings.grainScale).toFixed(3)
+    defs.push(
+      `<filter id="grain"><feTurbulence type="fractalNoise" baseFrequency="${freq}" numOctaves="2" stitchTiles="stitch"/><feColorMatrix type="saturate" values="0"/></filter>`,
+    )
+    grain = `<rect width="${W}" height="${H}" filter="url(#grain)" opacity="${settings.grain}" style="mix-blend-mode:overlay"/>`
+  }
+
+  return (
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">` +
+    `<defs>${defs.join('')}</defs>` +
+    `<rect width="${W}" height="${H}" fill="${settings.background}"/>` +
+    `<g${blurred ? ' filter="url(#blur)"' : ''}>${body.join('')}</g>` +
+    overlay +
+    grain +
+    `</svg>`
+  )
+}

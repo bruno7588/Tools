@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import ControlsPanel from './components/ControlsPanel'
 import MeshCanvas from './components/MeshCanvas'
 import { defaultShapes, makeShapes, randomPalette, randomShape, uid } from './lib/palette'
-import { makeNoiseCanvas, renderMesh, toCss } from './lib/render'
+import { makeNoiseCanvas, renderMesh, toCss, toSvg } from './lib/render'
 import { ASPECTS } from './lib/types'
 import type { Settings, Shape, ShapeType } from './lib/types'
 
@@ -112,6 +112,73 @@ export default function App() {
     }, 'image/png')
   }, [shapes, settings, flash])
 
+  const exportSvg = useCallback(() => {
+    const { w, h } = ASPECTS[settings.aspect]
+    const long = 1536
+    const W = w >= h ? long : Math.round((long * w) / h)
+    const H = h >= w ? long : Math.round((long * h) / w)
+    const svg = toSvg(shapes, settings, W, H)
+    const blob = new Blob([svg], { type: 'image/svg+xml' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `mesh-gradient-${W}x${H}.svg`
+    a.click()
+    URL.revokeObjectURL(url)
+    flash('SVG downloaded')
+  }, [shapes, settings, flash])
+
+  const exportJson = useCallback(() => {
+    const data = JSON.stringify({ version: 1, settings, shapes }, null, 2)
+    const blob = new Blob([data], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = 'mesh-gradient.json'
+    a.click()
+    URL.revokeObjectURL(url)
+    flash('Spec exported (JSON)')
+  }, [shapes, settings, flash])
+
+  const importJson = useCallback(
+    (file: File) => {
+      const clamp01 = (v: unknown) => Math.min(1, Math.max(0, Number(v) || 0))
+      const numOr = (v: unknown, d: number) => (Number.isFinite(Number(v)) ? Number(v) : d)
+      const reader = new FileReader()
+      reader.onload = () => {
+        try {
+          const data = JSON.parse(String(reader.result))
+          if (Array.isArray(data.shapes)) {
+            setShapes(
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              data.shapes.map((s: any) => ({
+                id: typeof s.id === 'string' ? s.id : uid(),
+                type: s.type === 'square' ? 'square' : 'circle',
+                x: clamp01(s.x),
+                y: clamp01(s.y),
+                size: numOr(s.size, 0.7),
+                color: typeof s.color === 'string' ? s.color : '#888888',
+                rotation: numOr(s.rotation, 0),
+                radius: clamp01(s.radius),
+                opacity: numOr(s.opacity, 1),
+                phase: numOr(s.phase, 0),
+              })),
+            )
+          }
+          if (data.settings && typeof data.settings === 'object') {
+            setSettings({ ...DEFAULT_SETTINGS, ...data.settings })
+          }
+          setSelectedId(null)
+          flash('Spec imported')
+        } catch {
+          flash('Import failed — invalid JSON')
+        }
+      }
+      reader.readAsText(file)
+    },
+    [flash],
+  )
+
   // Keyboard: Delete removes the selected shape, ⌘/Ctrl+Z undoes a Clear.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -160,6 +227,9 @@ export default function App() {
           onClear={clear}
           onCopyCss={copyCss}
           onExportPng={exportPng}
+          onExportSvg={exportSvg}
+          onExportJson={exportJson}
+          onImportJson={importJson}
         />
       </main>
       {toast && (

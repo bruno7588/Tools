@@ -1,3 +1,4 @@
+import { useRef } from 'react'
 import Slider from './Slider'
 import { ASPECTS } from '../lib/types'
 import type { AspectKey, Settings, Shape, ShapeType } from '../lib/types'
@@ -15,6 +16,9 @@ interface Props {
   onClear: () => void
   onCopyCss: () => void
   onExportPng: () => void
+  onExportSvg: () => void
+  onExportJson: () => void
+  onImportJson: (file: File) => void
 }
 
 export default function ControlsPanel(props: Props) {
@@ -31,9 +35,13 @@ export default function ControlsPanel(props: Props) {
     onClear,
     onCopyCss,
     onExportPng,
+    onExportSvg,
+    onExportJson,
+    onImportJson,
   } = props
 
   const selected = shapes.find((s) => s.id === selectedId) ?? null
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   return (
     <aside className="panel">
@@ -228,6 +236,30 @@ export default function ControlsPanel(props: Props) {
             Download PNG
           </button>
         </div>
+        <div className="btn-row">
+          <button className="btn" onClick={onExportSvg}>
+            Download SVG
+          </button>
+        </div>
+        <div className="btn-row">
+          <button className="btn" onClick={onExportJson}>
+            Export JSON
+          </button>
+          <button className="btn" onClick={() => fileInputRef.current?.click()}>
+            Import JSON
+          </button>
+        </div>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="application/json,.json"
+          hidden
+          onChange={(e) => {
+            const file = e.target.files?.[0]
+            if (file) onImportJson(file)
+            e.target.value = ''
+          }}
+        />
       </section>
     </aside>
   )
