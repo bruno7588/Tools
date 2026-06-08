@@ -31,6 +31,10 @@ export interface Settings {
   grain: number
   /** grain magnification, 1..6 */
   grainScale: number
+  /** color tint laid over the shapes */
+  overlayColor: string
+  /** overlay opacity, 0..1 (0 = no overlay) */
+  overlayOpacity: number
 }
 
 export const ASPECTS: Record<AspectKey, { w: number; h: number; label: string }> = {

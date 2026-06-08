@@ -78,6 +78,21 @@ export function drawShapes(
   ctx.restore()
 }
 
+/** Flat color tint laid over the shapes (below the grain). */
+export function drawOverlay(
+  ctx: CanvasRenderingContext2D,
+  W: number,
+  H: number,
+  settings: Settings,
+) {
+  if (settings.overlayOpacity <= 0) return
+  ctx.save()
+  ctx.globalAlpha = settings.overlayOpacity
+  ctx.fillStyle = settings.overlayColor
+  ctx.fillRect(0, 0, W, H)
+  ctx.restore()
+}
+
 /**
  * Grain overlay, drawn unblurred over the composited mesh. Scaled relative to
  * the image size so it reads the same at preview and export resolutions.
@@ -117,6 +132,7 @@ export function renderMesh(
   opts: RenderOpts = {},
 ) {
   drawShapes(ctx, W, H, shapes, settings)
+  drawOverlay(ctx, W, H, settings)
   drawGrain(ctx, W, H, settings, noise)
 
   if (opts.interactive && opts.selectedId) {
@@ -143,6 +159,11 @@ export function toCss(shapes: Shape[], settings: Settings): string {
       1,
     )}%, ${hexToRgba(s.color, s.opacity)} 0%, ${hexToRgba(s.color, 0)} ${sizePct}%)`
   })
+  // Background layers stack first-on-top, so the overlay tint goes first.
+  if (settings.overlayOpacity > 0) {
+    const tint = hexToRgba(settings.overlayColor, settings.overlayOpacity)
+    layers.unshift(`linear-gradient(${tint}, ${tint})`)
+  }
   return [
     `background-color: ${settings.background};`,
     `background-image:\n  ${layers.join(',\n  ')};`,

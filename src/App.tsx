@@ -12,6 +12,8 @@ const DEFAULT_SETTINGS: Settings = {
   blur: 55,
   grain: 0.12,
   grainScale: 2,
+  overlayColor: '#000000',
+  overlayOpacity: 0,
 }
 
 export default function App() {

@@ -191,6 +191,26 @@ export default function ControlsPanel(props: Props) {
       </section>
 
       <section className="group">
+        <h2>Overlay</h2>
+        <label className="row">
+          <span>Color</span>
+          <input
+            type="color"
+            value={settings.overlayColor}
+            onChange={(e) => onUpdateSettings({ overlayColor: e.target.value })}
+          />
+        </label>
+        <Slider
+          label="Opacity"
+          value={settings.overlayOpacity}
+          min={0}
+          max={1}
+          step={0.01}
+          onChange={(v) => onUpdateSettings({ overlayOpacity: v })}
+        />
+      </section>
+
+      <section className="group">
         <h2>Generate</h2>
         <div className="btn-row">
           <button className="btn primary" onClick={onRandomize}>

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef } from 'react'
-import { drawGrain, drawShapes, makeNoiseCanvas } from '../lib/render'
+import { drawGrain, drawOverlay, drawShapes, makeNoiseCanvas } from '../lib/render'
 import { ASPECTS } from '../lib/types'
 import type { Settings, Shape } from '../lib/types'
 
@@ -71,6 +71,7 @@ export default function MeshCanvas({ shapes, settings, selectedId, onSelect, onM
     ctx.clearRect(0, 0, bw, bh)
     ctx.imageSmoothingQuality = 'high'
     ctx.drawImage(offscreen, 0, 0, lw, lh, 0, 0, bw, bh)
+    drawOverlay(ctx, bw, bh, settings)
     drawGrain(ctx, bw, bh, settings, noise)
 
     if (selectedId) {
