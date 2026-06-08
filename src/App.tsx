@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import ControlsPanel from './components/ControlsPanel'
 import MeshCanvas from './components/MeshCanvas'
-import { makeShapes, randomPalette, randomShape, uid } from './lib/palette'
+import { defaultShapes, makeShapes, randomPalette, randomShape, uid } from './lib/palette'
 import { makeNoiseCanvas, renderMesh, toCss } from './lib/render'
 import { ASPECTS } from './lib/types'
 import type { Settings, Shape, ShapeType } from './lib/types'
@@ -17,14 +17,22 @@ const DEFAULT_SETTINGS: Settings = {
 }
 
 export default function App() {
-  const [shapes, setShapes] = useState<Shape[]>(() => makeShapes(5))
+  const [shapes, setShapes] = useState<Shape[]>(() => defaultShapes())
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS)
   const [selectedId, setSelectedId] = useState<string | null>(null)
-  const [toast, setToast] = useState<string | null>(null)
+  const [toast, setToast] = useState<{ msg: string; undo?: () => void } | null>(null)
+  const toastTimer = useRef<number>(0)
+  // Latest pending undo, readable from the keyboard handler.
+  const undoRef = useRef<(() => void) | null>(null)
 
-  const flash = useCallback((msg: string) => {
-    setToast(msg)
-    window.setTimeout(() => setToast(null), 1800)
+  const flash = useCallback((msg: string, undo?: () => void) => {
+    window.clearTimeout(toastTimer.current)
+    setToast({ msg, undo })
+    undoRef.current = undo ?? null
+    toastTimer.current = window.setTimeout(() => {
+      setToast(null)
+      undoRef.current = null
+    }, undo ? 7000 : 1800)
   }, [])
 
   const updateShape = useCallback((id: string, patch: Partial<Shape>) => {
@@ -55,15 +63,22 @@ export default function App() {
   }, [])
 
   const randomize = useCallback(() => {
-    const count = 4 + Math.floor(Math.random() * 3)
-    setShapes(makeShapes(count))
+    setShapes(makeShapes(3))
     setSelectedId(null)
   }, [])
 
   const clear = useCallback(() => {
+    if (shapes.length === 0) return
+    const snapshot = shapes
     setShapes([])
     setSelectedId(null)
-  }, [])
+    flash(`Cleared ${snapshot.length} shape${snapshot.length === 1 ? '' : 's'}`, () => {
+      setShapes(snapshot)
+      window.clearTimeout(toastTimer.current)
+      setToast(null)
+      undoRef.current = null
+    })
+  }, [shapes, flash])
 
   const copyCss = useCallback(async () => {
     const css = toCss(shapes, settings)
@@ -97,12 +112,17 @@ export default function App() {
     }, 'image/png')
   }, [shapes, settings, flash])
 
-  // Delete the selected shape with the keyboard.
+  // Keyboard: Delete removes the selected shape, ⌘/Ctrl+Z undoes a Clear.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if ((e.key === 'Delete' || e.key === 'Backspace') && selectedId) {
-        const target = e.target as HTMLElement
-        if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') return
+      const target = e.target as HTMLElement
+      const inField = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA'
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'z' && undoRef.current) {
+        e.preventDefault()
+        undoRef.current()
+        return
+      }
+      if ((e.key === 'Delete' || e.key === 'Backspace') && selectedId && !inField) {
         deleteShape(selectedId)
       }
     }
@@ -117,7 +137,7 @@ export default function App() {
           <span className="brand-dot" />
           Mesh Gradient Studio
         </div>
-        <span className="hint">Drag shapes on the canvas · Delete key removes selected</span>
+        <span className="hint">Drag shapes on the canvas · Delete removes selected · ⌘Z undoes Clear</span>
       </header>
       <main className="layout">
         <MeshCanvas
@@ -142,7 +162,16 @@ export default function App() {
           onExportPng={exportPng}
         />
       </main>
-      {toast && <div className="toast">{toast}</div>}
+      {toast && (
+        <div className="toast">
+          <span>{toast.msg}</span>
+          {toast.undo && (
+            <button className="toast-action" onClick={() => toast.undo!()}>
+              Undo
+            </button>
+          )}
+        </div>
+      )}
     </div>
   )
 }

@@ -24,9 +24,17 @@ export function randomPalette(count: number): string[] {
 }
 
 export function makeShapes(count: number, palette = randomPalette(count)): Shape[] {
-  return Array.from({ length: count }, (_, i) => ({
+  const types: Shape['type'][] = Array.from({ length: count }, () =>
+    Math.random() < 0.5 ? 'circle' : 'square',
+  )
+  // Guarantee a mix of circles and squares when there's more than one shape.
+  if (count > 1 && types.every((t) => t === types[0])) {
+    const flip = Math.floor(Math.random() * count)
+    types[flip] = types[flip] === 'circle' ? 'square' : 'circle'
+  }
+  return types.map((type, i) => ({
     id: uid(),
-    type: Math.random() < 0.5 ? 'circle' : 'square',
+    type,
     x: rand(0.15, 0.85),
     y: rand(0.15, 0.85),
     size: rand(0.45, 0.95),
@@ -35,6 +43,28 @@ export function makeShapes(count: number, palette = randomPalette(count)): Shape
     radius: rand(0, 0.6),
     opacity: rand(0.75, 1),
     phase: rand(0, Math.PI * 2),
+  }))
+}
+
+/** Opening state: 1 circle + 2 squares in a balanced arrangement. */
+export function defaultShapes(): Shape[] {
+  const palette = randomPalette(3)
+  const layout: { type: Shape['type']; x: number; y: number; size: number }[] = [
+    { type: 'circle', x: 0.32, y: 0.34, size: 0.8 },
+    { type: 'square', x: 0.72, y: 0.42, size: 0.72 },
+    { type: 'square', x: 0.5, y: 0.74, size: 0.7 },
+  ]
+  return layout.map((l, i) => ({
+    id: uid(),
+    type: l.type,
+    x: l.x,
+    y: l.y,
+    size: l.size,
+    color: palette[i],
+    rotation: i * 18,
+    radius: 0.25,
+    opacity: 0.9,
+    phase: 0,
   }))
 }
 
