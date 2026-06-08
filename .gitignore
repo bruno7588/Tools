@@ -1,0 +1,10 @@
+node_modules
+dist
+.vercel
+.env
+.env.local
+.DS_Store
+*.log
+
+# Local Claude Code state (per-machine settings, allowed tools, etc.)
+.claude/settings.local.json
