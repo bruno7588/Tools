@@ -14,7 +14,6 @@ interface Props {
   onUpdateSettings: (patch: Partial<Settings>) => void
   onRandomize: () => void
   onClear: () => void
-  onCopyCss: () => void
   onExportPng: () => void
   onExportSvg: () => void
   onExportJson: () => void
@@ -33,7 +32,6 @@ export default function ControlsPanel(props: Props) {
     onUpdateSettings,
     onRandomize,
     onClear,
-    onCopyCss,
     onExportPng,
     onExportSvg,
     onExportJson,
@@ -229,14 +227,9 @@ export default function ControlsPanel(props: Props) {
           </button>
         </div>
         <div className="btn-row">
-          <button className="btn" onClick={onCopyCss}>
-            Copy CSS
-          </button>
           <button className="btn" onClick={onExportPng}>
             Download PNG
           </button>
-        </div>
-        <div className="btn-row">
           <button className="btn" onClick={onExportSvg}>
             Download SVG
           </button>

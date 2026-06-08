@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import ControlsPanel from './components/ControlsPanel'
 import MeshCanvas from './components/MeshCanvas'
 import { defaultShapes, makeShapes, randomPalette, randomShape, uid } from './lib/palette'
-import { makeNoiseCanvas, renderMesh, toCss, toSvg } from './lib/render'
+import { makeNoiseCanvas, renderMesh, toSvg } from './lib/render'
 import { ASPECTS } from './lib/types'
 import type { Settings, Shape, ShapeType } from './lib/types'
 
@@ -79,16 +79,6 @@ export default function App() {
       undoRef.current = null
     })
   }, [shapes, flash])
-
-  const copyCss = useCallback(async () => {
-    const css = toCss(shapes, settings)
-    try {
-      await navigator.clipboard.writeText(css)
-      flash('CSS copied to clipboard')
-    } catch {
-      flash('Copy failed — clipboard blocked')
-    }
-  }, [shapes, settings, flash])
 
   const exportPng = useCallback(() => {
     const { w, h } = ASPECTS[settings.aspect]
@@ -225,7 +215,6 @@ export default function App() {
           onUpdateSettings={updateSettings}
           onRandomize={randomize}
           onClear={clear}
-          onCopyCss={copyCss}
           onExportPng={exportPng}
           onExportSvg={exportSvg}
           onExportJson={exportJson}

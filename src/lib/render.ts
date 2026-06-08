@@ -151,25 +151,6 @@ export function renderMesh(
   }
 }
 
-/** Layered CSS radial-gradient approximation of the mesh (squares approximated). */
-export function toCss(shapes: Shape[], settings: Settings): string {
-  const layers = shapes.map((s) => {
-    const sizePct = Math.round(s.size * 55)
-    return `radial-gradient(circle at ${(s.x * 100).toFixed(1)}% ${(s.y * 100).toFixed(
-      1,
-    )}%, ${hexToRgba(s.color, s.opacity)} 0%, ${hexToRgba(s.color, 0)} ${sizePct}%)`
-  })
-  // Background layers stack first-on-top, so the overlay tint goes first.
-  if (settings.overlayOpacity > 0) {
-    const tint = hexToRgba(settings.overlayColor, settings.overlayOpacity)
-    layers.unshift(`linear-gradient(${tint}, ${tint})`)
-  }
-  return [
-    `background-color: ${settings.background};`,
-    `background-image:\n  ${layers.join(',\n  ')};`,
-  ].join('\n')
-}
-
 /**
  * Resolution-independent SVG of the mesh. Blur uses feGaussianBlur and grain
  * uses feTurbulence, so it renders identically at any size in a browser.
