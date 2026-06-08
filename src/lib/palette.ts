@@ -1,4 +1,3 @@
-import { hslToHex } from './color'
 import type { Shape } from './types'
 
 const rand = (min: number, max: number) => min + Math.random() * (max - min)
@@ -6,21 +5,34 @@ const rand = (min: number, max: number) => min + Math.random() * (max - min)
 let counter = 0
 export const uid = () => `s${Date.now().toString(36)}${(counter++).toString(36)}`
 
-/** Harmonious color schemes expressed as hue offsets from a random base hue. */
-const SCHEMES: number[][] = [
-  [0, 30, 60, 90, 120], // analogous
-  [0, 180, 30, 210, 60], // complementary split
-  [0, 120, 240, 60, 300], // triad+
-  [0, 25, 200, 220, 45], // accented analogous
+/**
+ * Brand color system — vibrant/usable tones from each ramp plus the accent
+ * colors. The near-white and near-black ends are intentionally omitted: they
+ * make washed-out or muddy mesh blobs.
+ */
+export const BRAND_COLORS: string[] = [
+  // Teal
+  '#66E9F9', '#33E2F7', '#00CEE6', '#00AFC4', '#008393',
+  // Gold
+  '#FFE4AF', '#FFCF74', '#FFBB38', '#EDA30D',
+  // Green
+  '#A3DDBC', '#5DC389', '#18A957', '#11763D',
+  // Orange
+  '#FFC988', '#FFB760', '#FFA538', '#E88206',
+  // Pink / Red
+  '#F2A2B3', '#E95C7B', '#DF1642', '#9C0F2E',
+  // Accents
+  '#8158EC', '#9B55C9', '#6368DB', '#FA715F', '#2A90D8',
 ]
 
+/** Pick `count` distinct brand colors at random (cycles if count exceeds pool). */
 export function randomPalette(count: number): string[] {
-  const base = Math.floor(Math.random() * 360)
-  const scheme = SCHEMES[Math.floor(Math.random() * SCHEMES.length)]
-  return Array.from({ length: count }, (_, i) => {
-    const hue = (base + scheme[i % scheme.length] + rand(-12, 12) + 360) % 360
-    return hslToHex(hue, rand(62, 88), rand(48, 66))
-  })
+  const pool = [...BRAND_COLORS]
+  for (let i = pool.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1))
+    ;[pool[i], pool[j]] = [pool[j], pool[i]]
+  }
+  return Array.from({ length: count }, (_, i) => pool[i % pool.length])
 }
 
 export function makeShapes(count: number, palette = randomPalette(count)): Shape[] {
