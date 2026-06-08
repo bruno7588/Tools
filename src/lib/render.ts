@@ -24,18 +24,16 @@ export interface RenderOpts {
 }
 
 /**
- * Renders the full mesh into `ctx`. `W`/`H` are logical pixels — the caller is
- * responsible for any devicePixelRatio scaling. Blur and sizes are expressed
- * relative to the min dimension so the look is resolution-independent.
+ * Background + blurred shapes only. This is the expensive layer, so the live
+ * preview renders it into a small offscreen canvas and upscales the result —
+ * cheap, and indistinguishable because it's heavily blurred anyway.
  */
-export function renderMesh(
+export function drawShapes(
   ctx: CanvasRenderingContext2D,
   W: number,
   H: number,
   shapes: Shape[],
   settings: Settings,
-  noise: HTMLCanvasElement,
-  opts: RenderOpts = {},
 ) {
   const minDim = Math.min(W, H)
 
@@ -45,8 +43,6 @@ export function renderMesh(
   ctx.fillRect(0, 0, W, H)
 
   const blurPx = (settings.blur / 100) * 0.32 * minDim
-  let selCenter: { x: number; y: number; r: number } | null = null
-
   ctx.save()
   ctx.filter = blurPx > 0.2 ? `blur(${blurPx}px)` : 'none'
   for (const s of shapes) {
@@ -78,38 +74,64 @@ export function renderMesh(
       ctx.fill()
       ctx.restore()
     }
-
-    if (opts.interactive && s.id === opts.selectedId) {
-      selCenter = { x: cx, y: cy, r }
-    }
   }
   ctx.restore()
+}
 
-  // Grain overlay — magnified by scaling the context, never blurred.
-  if (settings.grain > 0) {
-    ctx.save()
-    ctx.globalAlpha = settings.grain
-    ctx.globalCompositeOperation = 'overlay'
-    const scale = settings.grainScale
-    ctx.scale(scale, scale)
-    const pattern = ctx.createPattern(noise, 'repeat')
-    if (pattern) {
-      ctx.fillStyle = pattern
-      ctx.fillRect(0, 0, W / scale, H / scale)
-    }
-    ctx.restore()
+/**
+ * Grain overlay, drawn unblurred over the composited mesh. Scaled relative to
+ * the image size so it reads the same at preview and export resolutions.
+ */
+export function drawGrain(
+  ctx: CanvasRenderingContext2D,
+  W: number,
+  H: number,
+  settings: Settings,
+  noise: HTMLCanvasElement,
+) {
+  if (settings.grain <= 0) return
+  ctx.save()
+  ctx.globalAlpha = settings.grain
+  ctx.globalCompositeOperation = 'overlay'
+  const scale = settings.grainScale * (Math.max(W, H) / 1500)
+  ctx.scale(scale, scale)
+  const pattern = ctx.createPattern(noise, 'repeat')
+  if (pattern) {
+    ctx.fillStyle = pattern
+    ctx.fillRect(0, 0, W / scale, H / scale)
   }
+  ctx.restore()
+}
 
-  // Selection ring (preview only, never exported).
-  if (selCenter) {
-    ctx.save()
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.95)'
-    ctx.lineWidth = 1.5
-    ctx.setLineDash([6, 5])
-    ctx.beginPath()
-    ctx.arc(selCenter.x, selCenter.y, Math.max(selCenter.r * 0.45, 14), 0, Math.PI * 2)
-    ctx.stroke()
-    ctx.restore()
+/**
+ * Full-quality, single-pass render (used for PNG export). `W`/`H` are logical
+ * pixels — the caller handles any devicePixelRatio scaling.
+ */
+export function renderMesh(
+  ctx: CanvasRenderingContext2D,
+  W: number,
+  H: number,
+  shapes: Shape[],
+  settings: Settings,
+  noise: HTMLCanvasElement,
+  opts: RenderOpts = {},
+) {
+  drawShapes(ctx, W, H, shapes, settings)
+  drawGrain(ctx, W, H, settings, noise)
+
+  if (opts.interactive && opts.selectedId) {
+    const s = shapes.find((x) => x.id === opts.selectedId)
+    if (s) {
+      const minDim = Math.min(W, H)
+      ctx.save()
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.95)'
+      ctx.lineWidth = 1.5
+      ctx.setLineDash([6, 5])
+      ctx.beginPath()
+      ctx.arc(s.x * W, s.y * H, Math.max(s.size * minDim * 0.6 * 0.45, 14), 0, Math.PI * 2)
+      ctx.stroke()
+      ctx.restore()
+    }
   }
 }
 
